@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en" style="background:#09090f">
+<head>
+<meta charset="utf-8">
+<title>Nocturne</title>
+<!-- Pre-paint theme: sets data attributes before CSS loads, preventing flash -->
+<script>(function(){var t=localStorage.getItem('nr_theme')||'gemini',a=localStorage.getItem('nr_accent')||'electra';document.documentElement.dataset.theme=t;document.documentElement.dataset.accent=a;document.documentElement.classList.add('no-trans');})();</script>
+<link rel="stylesheet" href="popup.css">
+<style>
+  /* Page-scoped utilities not in popup.css */
+  .slist          { display:flex; flex-direction:column; gap:2px; overflow-y:auto; flex:1; min-height:0 }
+  .vr             { width:1px; height:16px; background:var(--bd2); flex-shrink:0 }
+  .site-inp-field { flex:1; min-width:0; padding:2px 5px; background:var(--sf2); border:1px solid var(--bd2); border-radius:4px; color:var(--tx); font-size:10px; outline:none }
+  /* Oust defaults — checkboxes hidden; checked state via adjacent sibling */
+  .rp-opts input                        { display:none }
+  .rp-opts input:checked + .rp-opt-chip { border-color:var(--ac); color:var(--ac); background:var(--acd) }
+  /* New-list form: hidden by default; JS sets display:'flex' to show */
+  #new-list-form { display:none; gap:4px; align-items:center; flex-shrink:0 }
+
+</style>
+</head>
+<body>
+
+<!-- ── HEADER ─────────────────────────────────────────────── -->
+<header class="bento-header">
+  <button id="logo-btn" title="Immersive reader (Alt+I)">
+    <span class="logo-icon">🌙</span>
+    <span class="logo-text">NOCTURNE</span>
+  </button>
+  <nav class="pill-nav" role="tablist" aria-label="Nocturne sections">
+    <button class="nav-item active" role="tab" aria-selected="true"  data-target="sec-audio"  title="TTS">
+      <svg viewBox="0 0 24 24" fill="currentColor" width="15" height="15"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3zm-1 3a1 1 0 0 1 2 0v8a1 1 0 0 1-2 0V4zm-5 7H4a8 8 0 0 0 16 0h-2a6 6 0 0 1-12 0zm5 9v-2.07A8.02 8.02 0 0 0 19.93 11H22a10 10 0 0 1-9 9.93V21h2v2H9v-2h2v-1.07z"/></svg>
+    </button>
+    <button class="nav-item" role="tab" aria-selected="false" data-target="sec-reader"  title="Layout">Aa</button>
+    <button class="nav-item" role="tab" aria-selected="false" data-target="sec-replace"  title="Oust">✏️</button>
+    <button class="nav-item" role="tab" aria-selected="false" data-target="sec-access"   title="Automation">🔬</button>
+    <button class="nav-item" role="tab" aria-selected="false" data-target="sec-style"    title="Style">🎨</button>
+    <button class="nav-item" role="tab" aria-selected="false" data-target="sec-ai"       title="AI">✨</button>
+    <button class="nav-item" role="tab" aria-selected="false" data-target="sec-about"    title="Shortcuts">📋</button>
+  </nav>
+</header>
+
+<div class="bento-body">
+
+<!-- ── TAB 1 · AUDIO ──────────────────────────────────────── -->
+<section id="sec-audio" role="tabpanel" class="bento-section active">
+
+  <div class="tile tile-tts">
+    <div id="tts-ctrl">
+      <button class="ab-btn" id="btn-ai" title="AI overlay (Alt+A)" style="width:34px;height:34px;flex-shrink:0;font-size:15px">✨</button>
+      <button class="ab-nav ch-btn" id="btn-prev-ch" title="Prev chapter">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><polyline points="11 17 6 12 11 7"/><polyline points="18 17 13 12 18 7"/></svg>
+      </button>
+      <button class="ab-nav ch-btn" id="btn-next-ch" title="Next chapter">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><polyline points="13 17 18 12 13 7"/><polyline points="6 17 11 12 6 7"/></svg>
+      </button>
+      <div class="vr"></div>
+      <button class="ab-nav" id="btn-prev" title="← Para">
+        <svg viewBox="0 0 24 24" fill="currentColor" width="13" height="13"><path d="M15 18l-6-6 6-6"/></svg>
+      </button>
+      <button class="ab-btn" id="btn-play" title="Play/Stop" aria-label="Play" aria-pressed="false">
+        <svg id="ab-play-ic" viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M8 5v14l11-7z"/></svg>
+      </button>
+      <button class="ab-nav" id="btn-next" title="Para →">
+        <svg viewBox="0 0 24 24" fill="currentColor" width="13" height="13"><path d="M9 18l6-6-6-6"/></svg>
+      </button>
+      <div class="spd-wrap" title="TTS rate">
+        <div class="spd-fill" id="spd-fill"></div>
+        <div class="spd-lbl"><span>🔊</span><span id="spd-val">1×</span></div>
+        <input type="range" id="spd-r" min="0.5" max="3" step="0.05" value="1">
+      </div>
+    </div>
+    <div class="tts-meta"><span class="tts-meta-voice" id="meta-voice">—</span></div>
+  </div>
+
+  <div class="tile tile-vcol">
+    <div class="tile-hd"><span class="tile-hd-icon">🎙</span> Voices</div>
+    <div class="voice-gfilt">
+      <button class="chip on" id="g-m" title="♂" style="font-size:12px">♂</button>
+      <button class="chip"    id="g-f" title="♀" style="font-size:12px">♀</button>
+    </div>
+    <div id="vpreview-zone" title="Drop to preview">🎧 Drop</div>
+    <div id="vlist"></div>
+  </div>
+
+  <div class="tile tile-jig">
+    <div class="tile-hd" style="justify-content:space-between">
+      <span style="display:flex;align-items:center;gap:4px"><span class="tile-hd-icon">🔀</span> Chorus</span>
+      <span style="display:flex;gap:3px">
+        <button class="sm-btn" id="jig-shuffle"  title="Shuffle slots" style="padding:2px 5px;font-size:11px">🔀</button>
+        <button class="sm-btn" id="jig-del-mode" title="Delete mode"   style="padding:2px 5px;font-size:11px">🗑</button>
+      </span>
+    </div>
+    <div id="jig-area"></div>
+  </div>
+
+</section>
+
+
+<!-- ── TAB 2 · READER ─────────────────────────────────────── -->
+<section id="sec-reader" role="tabpanel" class="bento-section">
+
+  <div class="tile tile-font">
+    <span class="font-lbl">Font</span>
+    <select class="sel" id="sel-font" title="Reading font" style="flex:1">
+      <option value="system">System Default</option>
+      <option value="segoeui">Segoe UI</option>
+      <option value="arial">Arial</option>
+      <option value="helvetica">Helvetica Neue</option>
+      <option value="calibri">Calibri</option>
+      <option value="cambria">Cambria</option>
+      <option value="georgia">Georgia</option>
+      <option value="palatino">Palatino Linotype</option>
+      <option value="times">Times New Roman</option>
+      <option value="garamond">Garamond</option>
+      <option value="baskerville">Baskerville</option>
+      <option value="bookman">Bookman Old Style</option>
+      <option value="rockwell">Rockwell</option>
+      <option value="verdana">Verdana</option>
+      <option value="trebuchet">Trebuchet MS</option>
+      <option value="tahoma">Tahoma</option>
+      <option value="centuryg">Century Gothic</option>
+      <option value="candara">Candara</option>
+      <option value="gill">Gill Sans MT</option>
+      <option value="franklin">Franklin Gothic</option>
+      <option value="optima">Optima</option>
+      <option value="lucida">Lucida Sans</option>
+      <option value="impact">Impact</option>
+      <option value="consolas">Consolas (Mono)</option>
+      <option value="courier">Courier New</option>
+      <option value="lucida_console">Lucida Console</option>
+      <option value="comicsans" selected>Comic Sans MS</option>
+      <option value="opendys">OpenDyslexic</option>
+      <option value="papyrus">Papyrus</option>
+      <option value="copperplate">Copperplate</option>
+    </select>
+    <div class="chips" id="align-chips">
+      <button class="chip on" data-align="left"    title="Left">⬅</button>
+      <button class="chip"    data-align="center"  title="Center">≡</button>
+      <button class="chip"    data-align="right"   title="Right">➡</button>
+      <button class="chip"    data-align="justify" title="Justify">⬌</button>
+    </div>
+  </div>
+
+  <div class="tile tile-spac">
+    <div class="spac-vtitle">📐 Spacing</div>
+    <div class="spac-body">
+      <div class="sl-row">
+        <div class="fsl" id="fs-size"  title="px">          <div class="fsl-fill"></div><div class="fsl-lbl">Font 18px</div>    <input type="range" id="s-size"  min="10"  max="32"   step="1"     value="18"></div>
+        <div class="fsl" id="fs-lh"    title="Line height">  <div class="fsl-fill"></div><div class="fsl-lbl">Height 1.75</div>  <input type="range" id="s-lh"    min="1.1" max="2.5"  step="0.05"  value="1.75"></div>
+        <div class="fsl" id="fs-para"  title="Para gap">     <div class="fsl-fill"></div><div class="fsl-lbl">Para 1.2em</div>   <input type="range" id="s-para"  min="0.5" max="3"    step="0.1"   value="1.2"></div>
+        <div class="fsl" id="fs-ls"    title="Letter spacing"><div class="fsl-fill"></div><div class="fsl-lbl">Letter .01em</div> <input type="range" id="s-ls"    min="0"   max="0.12"  step="0.005" value="0.01"></div>
+        <div class="fsl" id="fs-ws"    title="Word spacing">  <div class="fsl-fill"></div><div class="fsl-lbl">Word .05em</div>   <input type="range" id="s-ws"    min="0"   max="0.25"  step="0.01"  value="0.05"></div>
+        <div class="fsl" id="fs-width" title="Column width">  <div class="fsl-fill"></div><div class="fsl-lbl">Width 55%</div>    <input type="range" id="s-width" min="25"  max="95"    step="5"     value="55"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tile tile-scan" style="gap:3px">
+    <label for="tog-scan" class="tile-hd" title="First/last sentence color-coded"
+           style="justify-content:space-between;padding-bottom:3px;cursor:pointer;width:100%">
+      <span style="display:flex;align-items:center;gap:4px"><span class="tile-hd-icon">👁</span> Scan &amp; Skim</span>
+      <span class="scan-vis-tog" aria-hidden="true"></span>
+      <input type="checkbox" id="tog-scan" style="display:none">
+    </label>
+    <div class="hl-grid">
+      <div class="hl-row"><span class="hl-lbl">First</span><input type="color" id="scan-fc" value="#fbbf24" title="First sentence"></div>
+      <div class="hl-row"><span class="hl-lbl">Last</span> <input type="color" id="scan-lc" value="#fb7185" title="Last sentence"></div>
+    </div>
+    <label id="super-scan-row" for="tog-super" class="row" title="Show first + last only"
+           style="padding-left:6px;border-left:2px solid var(--bd2);cursor:pointer;user-select:none">
+      <input type="checkbox" id="tog-super" disabled style="display:none">
+      <span class="lbl" style="flex:1;transition:color .15s">↳ Super Scan</span>
+      <span class="scan-vis-tog scan-vis-tog-sm" aria-hidden="true"></span>
+    </label>
+  </div>
+
+  <div class="feat-col">
+    <div class="tile tile-bionic" id="tile-bionic-btn" title="Bold stems (⚡ fixation speed)">
+      <input type="checkbox" id="tog-bionic" style="display:none">
+      <div class="tog-btn-lbl">
+        <span class="tog-btn-icon">⚡</span>
+        <span class="tog-btn-text">Bionic</span>
+      </div>
+    </div>
+    <div class="tile tile-vel on" id="tile-vel-btn" title="Ctrl+Click to anchor"
+         onclick="this.classList.toggle('on');document.getElementById('tog-vel').checked=this.classList.contains('on')">
+      <input type="checkbox" id="tog-vel" checked style="display:none">
+      <div class="tog-btn-lbl">
+        <span class="tog-btn-icon">🖱</span>
+        <span class="tog-btn-text">Velocity</span>
+      </div>
+    </div>
+  </div>
+
+</section>
+
+
+<!-- ── TAB 3 · OUST ───────────────────────────────────────── -->
+<section id="sec-replace" role="tabpanel" class="bento-section">
+
+  <div class="tile tile-form">
+    <div class="tile-vtitle">✏️ Oust</div>
+    <div class="tile-vbody">
+      <div class="rp-add-row">
+        <input class="rp-inp" id="rp-find-inp"    placeholder="Find… (// for multiple)" autocomplete="off" spellcheck="false">
+        <input class="rp-inp" id="rp-replace-inp" placeholder="Replace with…"           autocomplete="off" spellcheck="false">
+        <button class="sm-btn" id="rp-add-pair" style="flex-shrink:0;white-space:nowrap;padding:4px 9px">＋ Add</button>
+      </div>
+      <div class="row" style="padding-top:2px;border-top:1px solid var(--bd)">
+        <span style="font-size:9px;font-weight:700;color:var(--tx3);text-transform:uppercase;letter-spacing:.06em;flex-shrink:0">Defaults:</span>
+        <div class="rp-opts">
+          <input type="checkbox" id="def-mc">
+          <label for="def-mc" class="rp-opt-chip" title="Case-sensitive">Aa</label>
+          <input type="checkbox" id="def-ww" checked>
+          <label for="def-ww" class="rp-opt-chip" title="Whole word only">WW</label>
+          <input type="checkbox" id="def-pc" checked>
+          <label for="def-pc" class="rp-opt-chip" title="Preserve input casing">Pc</label>
+        </div>
+        <span style="font-size:9px;color:var(--tx3);line-height:1.3">for new pairs</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="tile tile-wrds">
+    <div class="tile-hd" style="justify-content:space-between">
+      <span style="display:flex;align-items:center;gap:4px">
+        <span class="tile-hd-icon">📝</span> Words
+        <span id="rp-list-count" style="color:var(--ac)">0</span>
+      </span>
+      <div style="display:flex;align-items:center;gap:4px">
+        <select id="rp-list-sel" class="sel" title="Active list"></select>
+        <button class="rp-del-sel" id="rp-del-sel" title="Delete selected pairs">🗑</button>
+      </div>
+    </div>
+    <div id="rp-plist" class="slist"></div>
+  </div>
+
+  <div class="tile tile-lsts">
+    <div class="tile-hd"><span class="tile-hd-icon">📋</span> Lists</div>
+    <div style="display:flex;gap:3px;flex-shrink:0">
+      <button class="sm-btn" id="rl-new-btn"   title="New list" style="flex:1">＋ New</button>
+      <button class="sm-btn" id="rl-merge-btn" title="Merge all enabled → one list">⊕ Merge</button>
+    </div>
+    <div id="new-list-form">
+      <input id="new-list-name-inp" placeholder="List name…" autocomplete="off" spellcheck="false"
+             style="flex:1;padding:3px 6px;background:var(--sf2);border:1px solid var(--ac);border-radius:4px;color:var(--tx);font-size:10px;outline:none">
+      <button class="sm-btn" id="new-list-ok"     style="flex-shrink:0;padding:3px 7px" title="Confirm">✓</button>
+      <button class="sm-btn" id="new-list-cancel" style="flex-shrink:0;padding:3px 6px" title="Cancel">✕</button>
+    </div>
+    <div id="rl-list" class="slist"></div>
+  </div>
+
+</section>
+
+
+<!-- ── TAB 4 · AUTOMATION ─────────────────────────────────── -->
+<section id="sec-access" role="tabpanel" class="bento-section">
+
+  <div style="display:grid;grid-template-columns:1fr 1.45fr;gap:6px;align-items:start;width:100%;box-sizing:border-box;direction:ltr">
+
+    <!-- col 1 LEFT: Reading Control — grid-column pins it regardless of parent flex/direction -->
+    <div class="tile tile-auto-ctrl" style="min-width:0;grid-column:1;grid-row:1">
+      <div class="tile-hd"><span class="tile-hd-icon">⚙</span> Reading Control</div>
+      <div class="row">
+        <span class="lbl" style="flex:1">Auto Next</span>
+        <label class="toggle-switch" title="Nav to next chapter when TTS ends">
+          <input type="checkbox" id="tog-autonext"><span class="toggle-slider"></span>
+        </label>
+      </div>
+      <div class="row">
+        <span class="lbl" style="flex:1">🛡 Guard</span>
+        <label class="toggle-switch" title="Halt TTS on CAPTCHA detection">
+          <input type="checkbox" id="tog-guard"><span class="toggle-slider"></span>
+        </label>
+      </div>
+      <div class="row">
+        <span class="lbl" style="flex:1">▶ Force TTS</span>
+        <label class="toggle-switch" title="Auto-start TTS on overlay open">
+          <input type="checkbox" id="tog-forcetts"><span class="toggle-slider"></span>
+        </label>
+      </div>
+      <div class="row" style="padding-top:4px;margin-top:4px;border-top:1px solid var(--bd)">
+        <span class="lbl" style="flex:1">✨ Auto AI</span>
+        <label class="toggle-switch" title="AI mode on auto-chapter advance">
+          <input type="checkbox" id="tog-auto-ai-next"><span class="toggle-slider"></span>
+        </label>
+      </div>
+    </div>
+
+    <!-- col 2 RIGHT: Site Rules — grid-column pins it regardless of parent flex/direction -->
+    <div class="tile" style="min-width:0;grid-column:2;grid-row:1;display:flex;flex-direction:column;gap:5px;overflow:hidden">
+      <div class="tile-hd"><span class="tile-hd-icon">🌐</span> Site Rules</div>
+      <div class="site-add-row">
+        <button class="site-micro-btn" id="sr-add" title="Add domain">Add</button>
+        <button class="site-micro-btn" id="sr-cur" title="Add active tab">+ This</button>
+        <input type="text" id="sr-inp" class="site-inp-field" placeholder="e.g. novelbin.com">
+      </div>
+      <div style="font-size:9px;color:var(--tx3);flex-shrink:0">Active: <span id="cur-site-lbl">—</span></div>
+      <div id="site-rules-list" class="slist"></div>
+    </div>
+
+  </div>
+
+</section>
+
+
+<!-- ── TAB 5 · STYLE ──────────────────────────────────────── -->
+<section id="sec-style" role="tabpanel" class="bento-section">
+
+  <div class="tile tile-thm">
+    <div class="tile-vtitle">🌙 Theme</div>
+    <div class="tile-vbody">
+      <select class="sel" id="sel-theme" title="Theme">
+        <option value="gemini"    selected>✨ Perfect</option>
+        <option value="dark"             >🌙 Dark</option>
+        <option value="night"            >🌑 Night</option>
+        <option value="sepia"            >📜 Sepia</option>
+        <option value="light"            >☀️ Light</option>
+        <option value="ocean"            >🌊 Ocean</option>
+        <option value="forest"           >🌿 Forest</option>
+        <option value="carbon"           >⬛ Carbon</option>
+        <option value="warm"             >🔥 Warm</option>
+        <option value="bw"               >⚪ B&amp;W</option>
+        <option value="midnight"         >🌌 Midnight</option>
+        <option value="aurora"           >🌠 Aurora</option>
+        <option value="rose"             >🌹 Rose</option>
+        <option value="lavender"         >💜 Lavender</option>
+        <option value="crimson"          >🔴 Crimson</option>
+        <option value="slate"            >🩵 Slate</option>
+        <option value="mint"             >🌿 Mint</option>
+        <option value="dusk"             >🌆 Dusk</option>
+        <option value="jade"             >🫚 Jade</option>
+        <option value="copper"           >🟤 Copper</option>
+        <option value="violet"           >🔮 Violet</option>
+        <option value="sakura"           >🌸 Sakura</option>
+      </select>
+      <div class="swatches">
+        <div class="sw" data-acc="blue"    style="background:#60a5fa"  title="Blue"></div>
+        <div class="sw" data-acc="teal"    style="background:#2dd4bf"  title="Teal"></div>
+        <div class="sw" data-acc="purple"  style="background:#a78bfa"  title="Purple"></div>
+        <div class="sw" data-acc="amber"   style="background:#fbbf24"  title="Amber"></div>
+        <div class="sw" data-acc="rose"    style="background:#fb7185"  title="Rose"></div>
+        <div class="sw" data-acc="sage"    style="background:#4ade80"  title="Sage"></div>
+        <div class="sw" data-acc="orange"  style="background:#fb923c"  title="Orange"></div>
+        <div class="sw" data-acc="pink"    style="background:#f472b6"  title="Pink"></div>
+        <div class="sw" data-acc="cyan"    style="background:#22d3ee"  title="Cyan"></div>
+        <div class="sw" data-acc="lime"    style="background:#a3e635"  title="Lime"></div>
+        <div class="sw" data-acc="indigo"  style="background:#818cf8"  title="Indigo"></div>
+        <div class="sw" data-acc="gold"    style="background:#eab308"  title="Gold"></div>
+        <div class="sw" data-acc="sky"     style="background:#38bdf8"  title="Sky"></div>
+        <div class="sw" data-acc="coral"   style="background:#f87171"  title="Coral"></div>
+        <div class="sw" data-acc="nebula"  style="background:linear-gradient(135deg,#c084fc 50%,#60a5fa 50%)" title="Nebula"></div>
+        <div class="sw" data-acc="sunset"  style="background:linear-gradient(135deg,#fb7185 50%,#fbbf24 50%)" title="Sunset"></div>
+        <div class="sw" data-acc="prism"   style="background:linear-gradient(135deg,#2dd4bf 50%,#fbbf24 50%)" title="Prism"></div>
+        <div class="sw on" data-acc="electra" style="background:linear-gradient(135deg,#a3e635 50%,#22d3ee 50%)" title="Electra"></div>
+        <div class="sw" data-acc="ember"   style="background:linear-gradient(135deg,#fb923c 50%,#fb7185 50%)" title="Ember"></div>
+        <div class="sw" data-acc="glacier" style="background:linear-gradient(135deg,#38bdf8 50%,#818cf8 50%)" title="Glacier"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tile-bot">
+    <div class="tile tile-prog">
+      <span class="side-lbl">📊 Progress Bar</span>
+      <input type="color" id="prog-color" value="#29273a" title="Progress bar color">
+    </div>
+    <div class="tile tile-ffc">
+      <button id="ffc-btn" title="Force text color">🖌 Force Font Color</button>
+      <input type="color" id="ffc-color" value="#d4d0e8" title="Color" style="display:none">
+    </div>
+  </div>
+
+  <div class="tile tile-hlt">
+    <div class="tile-vtitle">🖍 Highlights</div>
+    <div class="tile-vbody" style="gap:5px">
+      <div class="hl-grid">
+        <div class="hl-row"><span class="hl-lbl">Word</span><input type="color" id="hl-wc" value="#2dd4bf" title="Word HL"></div>
+        <div class="hl-row"><span class="hl-lbl">Para</span><input type="color" id="hl-pc" value="#2dd4bf" title="Para HL"></div>
+        <!-- tile-noun-btn: click handled by popup.js click-cop; noun-color stopPropagation prevents accidental toggle -->
+        <div class="tile tile-noun" id="tile-noun-btn" title="HL suffix-nouns + caps">
+          <input type="checkbox" id="tog-noun" style="display:none">
+          <div class="tog-btn-lbl">
+            <span class="tog-btn-text">Noun</span>
+            <input type="color" id="noun-color" value="#a78bfa" title="Noun color"
+                   onclick="event.stopPropagation()"
+                   style="width:18px;height:14px;border:none;border-radius:3px;padding:0;cursor:pointer;pointer-events:auto;opacity:.75;margin-top:2px">
+          </div>
+        </div>
+        <div class="fsl" id="fs-pop" title="Para HL opacity" style="align-self:stretch">
+          <div class="fsl-fill"></div><div class="fsl-lbl">Para 10%</div>
+          <input type="range" id="s-pop" min="0.05" max="0.6" step="0.01" value="0.10">
+        </div>
+        <div class="fsl" id="fs-texture" title="SVG noise overlay" style="align-self:stretch">
+          <div class="fsl-fill" id="texture-fill"></div><div class="fsl-lbl">Texture <span id="texture-val">0</span></div>
+          <input type="range" id="textureSlider" min="0" max="100" step="1" value="0">
+        </div>
+      </div>
+    </div>
+  </div>
+
+</section>
+
+
+<!-- ── TAB 6 · AI ──────────────────────────────────────────── -->
+<section id="sec-ai" role="tabpanel" class="bento-section">
+
+  <div style="display:grid;grid-template-columns:1fr 0.85fr;gap:6px;align-items:start;width:100%">
+
+    <!-- LEFT: mode, context, model, stats -->
+    <div class="tile" style="display:flex;flex-direction:column;gap:6px;min-width:0">
+      <div class="tile-hd"><span class="tile-hd-icon">✨</span> AI Mode</div>
+      <div style="display:flex;align-items:center;gap:6px">
+        <span style="font-size:9.5px;color:var(--tx2);flex:1">✏️ Behavior &amp; Context</span>
+        <button id="ai-ctx-open" class="sm-btn" title="System prompt injected with every chunk" style="flex-shrink:0;font-size:9px;padding:3px 7px">Edit ↗</button>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:3px">
+        <label style="font-size:9px;color:var(--tx3);font-weight:700;text-transform:uppercase;letter-spacing:.05em" for="ai-model-sel">⚡ Rewrite Model</label>
+        <select id="ai-model-sel" class="sel" title="Groq model for rewrite chunks" style="width:100%;font-size:9px">
+          <option value="llama-3.1-8b-instant">Llama 3.1 · 8B Instant (fast)</option>
+          <option value="llama-3.3-70b-versatile">Llama 3.3 · 70B Versatile (quality)</option>
+        </select>
+      </div>
+      <!-- Last Run Stats -->
+      <div id="ai-stats-panel" style="display:none;margin-top:2px">
+        <div style="font-size:9px;font-weight:700;color:var(--tx3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">⚡ Last Run</div>
+        <div id="ai-stats-body" style="display:grid;grid-template-columns:1fr 1fr;gap:3px"></div>
+        <div id="ai-stats-footer" style="font-size:9px;color:var(--tx3);margin-top:4px;text-align:right"></div>
+      </div>
+    </div>
+
+    <!-- RIGHT: API keys + save (compact) -->
+    <div class="tile" style="display:flex;flex-direction:column;gap:5px;min-width:0">
+      <div class="tile-hd"><span class="tile-hd-icon">🔑</span> API Keys</div>
+      <div style="display:flex;flex-direction:column;gap:4px">
+        <div style="display:flex;flex-direction:column;gap:2px">
+          <label style="font-size:8.5px;color:var(--tx3)" for="groq-key">Key 1</label>
+          <input type="password" id="groq-key"  class="ai-inp" placeholder="gsk_…" title="Groq API key 1" style="width:100%;box-sizing:border-box;padding:3px 5px;background:var(--sf2);border:1px solid var(--bd2);border-radius:4px;color:var(--tx);font-size:9px;outline:none;font-family:inherit">
+        </div>
+        <div style="display:flex;flex-direction:column;gap:2px">
+          <label style="font-size:8.5px;color:var(--tx3)" for="groq-key2">Key 2</label>
+          <input type="password" id="groq-key2" class="ai-inp" placeholder="gsk_…" title="Groq API key 2" style="width:100%;box-sizing:border-box;padding:3px 5px;background:var(--sf2);border:1px solid var(--bd2);border-radius:4px;color:var(--tx);font-size:9px;outline:none;font-family:inherit">
+        </div>
+        <div style="display:flex;flex-direction:column;gap:2px">
+          <label style="font-size:8.5px;color:var(--tx3)" for="groq-key3">Key 3</label>
+          <input type="password" id="groq-key3" class="ai-inp" placeholder="gsk_…" title="Groq API key 3" style="width:100%;box-sizing:border-box;padding:3px 5px;background:var(--sf2);border:1px solid var(--bd2);border-radius:4px;color:var(--tx);font-size:9px;outline:none;font-family:inherit">
+        </div>
+        <div style="display:flex;flex-direction:column;gap:2px">
+          <label style="font-size:8.5px;color:var(--tx3)" for="groq-key4">Key 4</label>
+          <input type="password" id="groq-key4" class="ai-inp" placeholder="gsk_…" title="Groq API key 4" style="width:100%;box-sizing:border-box;padding:3px 5px;background:var(--sf2);border:1px solid var(--bd2);border-radius:4px;color:var(--tx);font-size:9px;outline:none;font-family:inherit">
+        </div>
+      </div>
+      <button id="save-ai" class="sm-btn" title="Save keys + model" style="background:var(--ac);color:#000;border-color:var(--ac);padding:4px 10px;align-self:stretch;font-size:9px;font-weight:700;margin-top:2px">Save</button>
+    </div>
+
+  </div>
+
+</section>
+
+
+<!-- ── TAB 7 · ABOUT ──────────────────────────────────────── -->
+<section id="sec-about" role="tabpanel" class="bento-section">
+
+  <div class="tile tile-abt-l">
+    <div class="tile-hd">
+      <span class="tile-hd-icon">⌨</span> Hotkeys
+      <span style="font-size:9px;font-weight:400;color:var(--tx3);margin-left:2px">(click to rebind)</span>
+    </div>
+    <div class="kbd-t" id="hotkey-table"></div>
+
+    <div style="margin-top:8px;border-top:1px solid var(--bd);padding-top:7px">
+      <div style="font-size:9px;font-weight:700;color:var(--tx3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px">Alt+ · Fixed</div>
+      <div class="kbd-t">
+        <kbd>Alt+I</kbd><span class="k-desc">Immersive toggle</span>
+        <kbd>Alt+A</kbd><span class="k-desc">AI overlay toggle</span>
+        <kbd>Alt+X</kbd><span class="k-desc">Close active overlay</span>
+        <kbd>Alt+E</kbd><span class="k-desc">Explain selection</span>
+        <kbd>Alt+D</kbd><span class="k-desc">Define selection</span>
+        <kbd>Alt+T</kbd><span class="k-desc">Translate selection</span>
+        <kbd>Alt+C</kbd><span class="k-desc">Chat / summarise</span>
+      </div>
+    </div>
+
+    <div style="margin-top:8px;border-top:1px solid var(--bd);padding-top:7px">
+      <div style="font-size:9px;font-weight:700;color:var(--tx3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px">Page · Fixed</div>
+      <div class="kbd-t">
+        <kbd>Ctrl+Click</kbd><span class="k-desc">Velocity scroll anchor</span>
+        <kbd>Click para</kbd><span class="k-desc">Read from here (TTS on)</span>
+        <kbd>Right-click</kbd><span class="k-desc">Read here / AI / Immersive</span>
+        <kbd>Select text</kbd><span class="k-desc">Explain / Define / Translate / Talk</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="tile tile-abt-r">
+    <div class="tile-hd"><span class="tile-hd-icon">🌙</span> Nocturne <span style="font-size:9px;font-weight:400;color:var(--tx3);margin-left:3px">v3.0</span></div>
+    <div class="feat-item"><div class="feat-icon">📖</div><div><div class="feat-name">Reader</div><div class="feat-desc">DOM-cleaned overlay. Alt+I.</div></div></div>
+    <div class="feat-item"><div class="feat-icon">🎙</div><div><div class="feat-name">Neural TTS</div><div class="feat-desc">Pre-queued paras, watchdog restart, speed ramp.</div></div></div>
+    <div class="feat-item"><div class="feat-icon">🎵</div><div><div class="feat-name">Chorus</div><div class="feat-desc">Parallel voice slots; drag to reorder.</div></div></div>
+    <div class="feat-item"><div class="feat-icon">👁</div><div><div class="feat-name">Scan &amp; Skim</div><div class="feat-desc">First/last sentence coloring + super-skim.</div></div></div>
+    <div class="feat-item"><div class="feat-icon">⚡</div><div><div class="feat-name">Bionic</div><div class="feat-desc">Stem-bold for faster fixation.</div></div></div>
+    <div class="feat-item"><div class="feat-icon">✏️</div><div><div class="feat-name">Oust</div><div class="feat-desc">Live find-replace, named lists, regex-like multi-term.</div></div></div>
+    <div class="feat-item"><div class="feat-icon">✨</div><div><div class="feat-name">AI Overlay</div><div class="feat-desc">4-parallel-chunk Groq rewrite. Alt+A. Select for Explain/Define/Translate.</div></div></div>
+    <div class="feat-item"><div class="feat-icon">🖱</div><div><div class="feat-name">Velocity</div><div class="feat-desc">Ctrl+Click anchor; cursor distance → speed.</div></div></div>
+    <div class="feat-item"><div class="feat-icon">⚙️</div><div><div class="feat-name">Automation</div><div class="feat-desc">Per-domain auto-immersive, auto-AI, chain TTS, banlist.</div></div></div>
+  </div>
+
+</section>
+
+
+<!-- ── AI CONTEXT MODAL (absolute-positioned over .bento-body) ── -->
+<div id="ai-ctx-modal" style="display:none;position:absolute;inset:0;z-index:9000;background:rgba(0,0,0,.72);align-items:center;justify-content:center">
+  <div style="background:var(--sf);border:1px solid var(--bd2);border-radius:10px;padding:14px;width:88%;max-width:420px;display:flex;flex-direction:column;gap:8px;box-shadow:0 12px 40px rgba(0,0,0,.6)">
+    <div style="font-size:11px;font-weight:700;color:var(--tx);letter-spacing:.05em">✏️ Behavior &amp; Context</div>
+    <div style="font-size:9px;color:var(--tx3);line-height:1.4">System prompt prepended to every rewrite chunk.</div>
+    <textarea id="ai-context" placeholder="e.g., Paraphrase this text to sound like a pirate…"
+              style="width:100%;height:120px;resize:vertical;box-sizing:border-box;padding:8px;background:var(--sf2);border:1px solid var(--bd2);border-radius:6px;color:var(--tx);font-size:10px;font-family:inherit;line-height:1.5;outline:none"></textarea>
+    <div style="display:flex;gap:6px;justify-content:flex-end">
+      <button id="ai-ctx-cancel" class="sm-btn" title="Discard">Cancel</button>
+      <button id="ai-ctx-submit" class="sm-btn" title="Save to storage" style="background:var(--ac);color:#000;border-color:var(--ac)">Submit</button>
+    </div>
+  </div>
+</div>
+
+</div><!-- /.bento-body -->
+
+<div id="toast-container" aria-live="polite" aria-atomic="false"></div>
+<script src="popup.js"></script>
+</body>
+</html>
