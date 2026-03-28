@@ -47,4 +47,4 @@ To enable AI features:
 - **State Management**: Uses `chrome.storage.local` for heavy site rules and `storage.sync` for cross-device settings.
 
 ---
-MIT © [Your Name]
+MIT © Adib Jawad
